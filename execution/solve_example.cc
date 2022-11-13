@@ -39,10 +39,12 @@
 
 ABSL_FLAG(std::string, valid_path, "", "Path to validation dataset.");
 
-namespace deepmind::code_contests {
-namespace {
+namespace deepmind::code_contests
+{
+  namespace
+  {
 
-constexpr absl::string_view kGoodSolution = R"py(
+    constexpr absl::string_view kGoodSolution = R"py(
 t = int(input())
 while t:
   n = int(input())
@@ -50,7 +52,7 @@ while t:
   t -= 1
 )py";
 
-constexpr absl::string_view kBadSolution = R"py(
+    constexpr absl::string_view kBadSolution = R"py(
 t = int(input())
 while t:
   n = int(input())
@@ -61,144 +63,167 @@ while t:
   t -= 1
 )py";
 
-constexpr absl::string_view kInvalidSolution = ")";
+    constexpr absl::string_view kInvalidSolution = ")";
 
-absl::StatusOr<ContestProblem> FindGregorAndCryptography(
-    const absl::string_view filename) {
-  riegeli::RecordReader<riegeli::FdReader<>> reader(
-      std::forward_as_tuple(filename));
-  ContestProblem problem;
-  while (reader.ReadRecord(problem)) {
-    if (problem.name() == "1549_A. Gregor and Cryptography") return problem;
-  }
-  return absl::NotFoundError(
-      "Gregor and Cryptography problem not found. Did you pass the "
-      "validation dataset?");
-}
-
-std::vector<absl::string_view> GetInputs(const ContestProblem& problem,
-                                         int max_size) {
-  std::vector<absl::string_view> inputs;
-  for (const auto& test : problem.public_tests()) {
-    inputs.push_back(test.input());
-  }
-  for (const auto& test : problem.private_tests()) {
-    inputs.push_back(test.input());
-  }
-  for (const auto& test : problem.generated_tests()) {
-    inputs.push_back(test.input());
-  }
-  inputs.resize(max_size);
-  return inputs;
-}
-
-std::vector<absl::string_view> GetPython3Solutions(const ContestProblem& problem,
-                                         int max_size) {
-  std::vector<absl::string_view> solutions;
-  for (const auto& test : problem.solutions()) {
-    if(test.language() == test.PYTHON3){
-      std::cout<<"found a python 3 solution"<<std::endl;
-      solutions.push_back(test.solution());
+    absl::StatusOr<ContestProblem> FindGregorAndCryptography(
+        const absl::string_view filename)
+    {
+      riegeli::RecordReader<riegeli::FdReader<>> reader(
+          std::forward_as_tuple(filename));
+      ContestProblem problem;
+      while (reader.ReadRecord(problem))
+      {
+        if (problem.name() == "1549_A. Gregor and Cryptography")
+          return problem;
+      }
+      return absl::NotFoundError(
+          "Gregor and Cryptography problem not found. Did you pass the "
+          "validation dataset?");
     }
-  }
-  solutions.resize(max_size);
-  return solutions;
-}
 
-std::vector<absl::string_view> GetOutputs(const ContestProblem& problem,
-                                          int max_size) {
-  std::vector<absl::string_view> outputs;
-  for (const auto& test : problem.public_tests()) {
-    outputs.push_back(test.output());
-  }
-  for (const auto& test : problem.private_tests()) {
-    outputs.push_back(test.output());
-  }
-  for (const auto& test : problem.generated_tests()) {
-    outputs.push_back(test.output());
-  }
-  outputs.resize(max_size);
-  return outputs;
-}
-
-void ReportResults(const MultiTestResult& multi_result) {
-  std::cout << "Compilation "
-            << (multi_result.compilation_result.program_status ==
-                        ProgramStatus::kSuccess
-                    ? "succeeded"
-                    : "failed")
-            << "\n";
-  int i = 0;
-  for (const auto& test_result : multi_result.test_results) {
-    if (!test_result.passed.has_value()) {
-      std::cout << "Test " << i << " did not run.\n";
-    } else if (*test_result.passed) {
-      std::cout << "Test " << i << " passed.\n";
-    } else {
-      std::cout << "Test " << i << " failed.\n";
+    std::vector<absl::string_view> GetInputs(const ContestProblem &problem,
+                                             int max_size)
+    {
+      std::vector<absl::string_view> inputs;
+      for (const auto &test : problem.public_tests())
+      {
+        inputs.push_back(test.input());
+      }
+      for (const auto &test : problem.private_tests())
+      {
+        inputs.push_back(test.input());
+      }
+      for (const auto &test : problem.generated_tests())
+      {
+        inputs.push_back(test.input());
+      }
+      inputs.resize(max_size);
+      return inputs;
     }
-    ++i;
-  }
-}
 
-absl::Status SolveAll(const absl::string_view filename) {
+    std::vector<absl::string_view> GetPython3Solutions(const ContestProblem &problem,
+                                                       int max_size)
+    {
+      std::vector<absl::string_view> solutions;
+      for (const auto &test : problem.solutions())
+      {
+        if (test.language() == test.PYTHON3)
+        {
+          std::cout << "found a python 3 solution" << std::endl;
+          solutions.push_back(test.solution());
+        }
+      }
+      solutions.resize(max_size);
+      return solutions;
+    }
 
-  // set up evaluation environment
-  Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
-  TestOptions options;
-  options.num_threads = 4;
-  options.stop_on_first_failure = true;
+    std::vector<absl::string_view> GetOutputs(const ContestProblem &problem,
+                                              int max_size)
+    {
+      std::vector<absl::string_view> outputs;
+      for (const auto &test : problem.public_tests())
+      {
+        outputs.push_back(test.output());
+      }
+      for (const auto &test : problem.private_tests())
+      {
+        outputs.push_back(test.output());
+      }
+      for (const auto &test : problem.generated_tests())
+      {
+        outputs.push_back(test.output());
+      }
+      outputs.resize(max_size);
+      return outputs;
+    }
 
-  // iterate through problems
-  riegeli::RecordReader<riegeli::FdReader<>> reader(
-      std::forward_as_tuple(filename));
-  ContestProblem problem;
+    void ReportResults(const MultiTestResult &multi_result)
+    {
+      std::cout << "Compilation "
+                << (multi_result.compilation_result.program_status ==
+                            ProgramStatus::kSuccess
+                        ? "succeeded"
+                        : "failed")
+                << "\n";
+      int i = 0;
+      for (const auto &test_result : multi_result.test_results)
+      {
+        if (!test_result.passed.has_value())
+        {
+          std::cout << "Test " << i << " did not run.\n";
+        }
+        else if (*test_result.passed)
+        {
+          std::cout << "Test " << i << " passed.\n";
+        }
+        else
+        {
+          std::cout << "Test " << i << " failed.\n";
+        }
+        ++i;
+      }
+    }
 
-  int num_problems = 0;
-  while (reader.ReadRecord(problem)) {
-      std::cout<<"managed to parse solutions"<<std::endl;
+    absl::Status SolveAll(const absl::string_view filename)
+    {
+
+      // set up evaluation environment
+      Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
+      TestOptions options;
+      options.num_threads = 4;
+      options.stop_on_first_failure = true;
+
+      // iterate through problems
+      riegeli::RecordReader<riegeli::FdReader<>> reader(
+          std::forward_as_tuple(filename));
+      ContestProblem problem;
+
+      int num_problems = 0;
+      while (reader.ReadRecord(problem))
+      {
+        std::cout << "managed to parse solutions" << std::endl;
+        const std::vector<absl::string_view> inputs =
+            GetInputs(problem,
+                      /*max_size=*/10000);
+        const std::vector<absl::string_view> outputs =
+            GetOutputs(problem,
+                       /*max_size=*/10000);
+        const std::vector<absl::string_view> solutions =
+            GetPython3Solutions(problem,
+                                /*max_size=*/10000);
+
+        for (const auto &solution : solutions)
+        {
+
+          ASSIGN_OR_RETURN(MultiTestResult result,
+                           tester.Test(solution, inputs, options, outputs));
+          ReportResults(result);
+        }
+
+        break;
+      }
+
+      return absl::OkStatus();
+    }
+
+    absl::Status SolveGregorAndCryptography(
+        const absl::string_view valid_filename)
+    {
+      ASSIGN_OR_RETURN(ContestProblem gregor_and_cryptography,
+                       FindGregorAndCryptography(valid_filename));
       const std::vector<absl::string_view> inputs =
-      GetInputs(problem,
-                /*max_size=*/10000);
-  const std::vector<absl::string_view> outputs =
-      GetOutputs(problem,
-                 /*max_size=*/10000);
-      const std::vector<absl::string_view> solutions =
-      GetPython3Solutions(problem,
-                /*max_size=*/10000);
+          GetInputs(gregor_and_cryptography,
+                    /*max_size=*/10);
+      const std::vector<absl::string_view> outputs =
+          GetOutputs(gregor_and_cryptography,
+                     /*max_size=*/10);
 
-      for(const auto& solution: solutions){
+      Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
+      TestOptions options;
+      options.num_threads = 4;
+      options.stop_on_first_failure = true;
 
-        ASSIGN_OR_RETURN(MultiTestResult result,
-                        tester.Test(solution, inputs, options, outputs));
-        ReportResults(result);
-      }  
-
-
-  }
-
-  return absl::OkStatus();
-}
-
-absl::Status SolveGregorAndCryptography(
-    const absl::string_view valid_filename) {
-  ASSIGN_OR_RETURN(ContestProblem gregor_and_cryptography,
-                   FindGregorAndCryptography(valid_filename));
-  const std::vector<absl::string_view> inputs =
-      GetInputs(gregor_and_cryptography,
-                /*max_size=*/10);
-  const std::vector<absl::string_view> outputs =
-      GetOutputs(gregor_and_cryptography,
-                 /*max_size=*/10);
-
-  
-
-  Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
-  TestOptions options;
-  options.num_threads = 4;
-  options.stop_on_first_failure = true;
-
-  std::cout << R"(We will try to solve "Gregor and Cryptography":
+      std::cout << R"(We will try to solve "Gregor and Cryptography":
 https://codeforces.com/problemset/problem/1549/A
 
 We will run:
@@ -210,11 +235,11 @@ We will run:
 An invalid program is reported as not compiling:
 
 )";
-  ASSIGN_OR_RETURN(MultiTestResult invalid_result,
-                   tester.Test(kInvalidSolution, inputs, options, outputs));
-  ReportResults(invalid_result);
+      ASSIGN_OR_RETURN(MultiTestResult invalid_result,
+                       tester.Test(kInvalidSolution, inputs, options, outputs));
+      ReportResults(invalid_result);
 
-  std::cout << R"(
+      std::cout << R"(
 --------------------------------------------------------------------------------
 The bad solution passes a few tests but then fails.
 Because we set stop_on_first_failure to True, we stop once we see a failure.
@@ -222,32 +247,34 @@ We are running on 4 threads, so it's possible that more than one failure occurs
 before all threads stop.
 
 )";
-  ASSIGN_OR_RETURN(MultiTestResult bad_result,
-                   tester.Test(kBadSolution, inputs, options, outputs));
-  ReportResults(bad_result);
+      ASSIGN_OR_RETURN(MultiTestResult bad_result,
+                       tester.Test(kBadSolution, inputs, options, outputs));
+      ReportResults(bad_result);
 
-  std::cout << R"(
+      std::cout << R"(
 --------------------------------------------------------------------------------
 The good solution passes all tests.
 
 )";
 
-  ASSIGN_OR_RETURN(MultiTestResult good_result,
-                   tester.Test(kGoodSolution, inputs, options, outputs));
-  ReportResults(good_result);
+      ASSIGN_OR_RETURN(MultiTestResult good_result,
+                       tester.Test(kGoodSolution, inputs, options, outputs));
+      ReportResults(good_result);
 
-  return absl::OkStatus();
-}
+      return absl::OkStatus();
+    }
 
-}  // namespace
-}  // namespace deepmind::code_contests
+  } // namespace
+} // namespace deepmind::code_contests
 
-int main(int argc, char* argv[]) {
-  std::cout<< "starting"<<std::endl;
+int main(int argc, char *argv[])
+{
+  std::cout << "starting" << std::endl;
   absl::ParseCommandLine(argc, argv);
   if (absl::Status status = deepmind::code_contests::SolveAll(
           absl::GetFlag(FLAGS_valid_path));
-      !status.ok()) {
+      !status.ok())
+  {
     std::cerr << "Failed: " << status.message() << std::endl;
   }
 }

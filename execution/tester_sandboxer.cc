@@ -464,6 +464,7 @@ sandbox2::PolicyBuilder CreateBasePolicy(absl::string_view binary,
 
   // Must be before AllowStaticStartup.
   builder.AllowSyscall(__NR_readlink);
+  builder.AllowSyscall(__NR_arch_prctl);
 
   // Allow general, safe syscalls.
   builder.AllowExit();           // process/thread: exit, exit_group
