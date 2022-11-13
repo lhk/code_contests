@@ -92,6 +92,19 @@ std::vector<absl::string_view> GetInputs(const ContestProblem& problem,
   return inputs;
 }
 
+std::vector<absl::string_view> GetPython3Solutions(const ContestProblem& problem,
+                                         int max_size) {
+  std::vector<absl::string_view> solutions;
+  for (const auto& test : problem.solutions()) {
+    if(test.language() == test.PYTHON3){
+      std::cout<<"found a python 3 solution"<<std::endl;
+      solutions.push_back(test.solution());
+    }
+  }
+  solutions.resize(max_size);
+  return solutions;
+}
+
 std::vector<absl::string_view> GetOutputs(const ContestProblem& problem,
                                           int max_size) {
   std::vector<absl::string_view> outputs;
@@ -128,6 +141,45 @@ void ReportResults(const MultiTestResult& multi_result) {
   }
 }
 
+absl::Status SolveAll(const absl::string_view filename) {
+
+  // set up evaluation environment
+  Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
+  TestOptions options;
+  options.num_threads = 4;
+  options.stop_on_first_failure = true;
+
+  // iterate through problems
+  riegeli::RecordReader<riegeli::FdReader<>> reader(
+      std::forward_as_tuple(filename));
+  ContestProblem problem;
+
+  int num_problems = 0;
+  while (reader.ReadRecord(problem)) {
+      std::cout<<"managed to parse solutions"<<std::endl;
+      const std::vector<absl::string_view> inputs =
+      GetInputs(problem,
+                /*max_size=*/10000);
+  const std::vector<absl::string_view> outputs =
+      GetOutputs(problem,
+                 /*max_size=*/10000);
+      const std::vector<absl::string_view> solutions =
+      GetPython3Solutions(problem,
+                /*max_size=*/10000);
+
+      for(const auto& solution: solutions){
+
+        ASSIGN_OR_RETURN(MultiTestResult result,
+                        tester.Test(solution, inputs, options, outputs));
+        ReportResults(result);
+      }  
+
+
+  }
+
+  return absl::OkStatus();
+}
+
 absl::Status SolveGregorAndCryptography(
     const absl::string_view valid_filename) {
   ASSIGN_OR_RETURN(ContestProblem gregor_and_cryptography,
@@ -138,6 +190,8 @@ absl::Status SolveGregorAndCryptography(
   const std::vector<absl::string_view> outputs =
       GetOutputs(gregor_and_cryptography,
                  /*max_size=*/10);
+
+  
 
   Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
   TestOptions options;
@@ -189,8 +243,9 @@ The good solution passes all tests.
 }  // namespace deepmind::code_contests
 
 int main(int argc, char* argv[]) {
+  std::cout<< "starting"<<std::endl;
   absl::ParseCommandLine(argc, argv);
-  if (absl::Status status = deepmind::code_contests::SolveGregorAndCryptography(
+  if (absl::Status status = deepmind::code_contests::SolveAll(
           absl::GetFlag(FLAGS_valid_path));
       !status.ok()) {
     std::cerr << "Failed: " << status.message() << std::endl;
