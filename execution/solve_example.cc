@@ -221,12 +221,14 @@ while t:
 
       int num_problems = 0;
       std::vector<std::tuple<int, int>> passes_and_fails;
-      const auto start = absl::Now();
       while (reader.ReadRecord(problem))
       {
-          if(problem.name()!="1549_A. Gregor and Cryptography"){
-            continue;
-          }
+        if (problem.name() != "1549_A. Gregor and Cryptography")
+        {
+          continue;
+        }
+
+        const auto start = absl::Now();
         const std::vector<absl::string_view> inputs =
             GetInputs(problem,
                       /*max_size=*/-1); // -1 for no resizing
@@ -242,13 +244,15 @@ while t:
         int num_failed = 0;
 
         // if we want to evaluate only a subset
-        int max_per_problem = 10;
+        int max_per_problem = 50;
+        std::vector<int> passorfail;
         for (const auto &solution : solutions)
         {
           ASSIGN_OR_RETURN(MultiTestResult result,
                            tester.Test(solution, inputs, options, outputs));
 
           // ReportResults(result);
+          passorfail.push_back(DidItPass(result));
           if (DidItPass(result))
           {
             num_passed++;
@@ -262,16 +266,22 @@ while t:
           }
           if (num_passed + num_failed >= max_per_problem)
           {
+            std::cout<<solution<<std::endl;
             break;
           }
         }
         std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
-        //passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
+
+        const auto stop = absl::Now();
+        std::cout << "Total duration: " << stop - start << std::endl;
+
+        for(const auto& t : passorfail){
+          std::cout << t << std::endl;
+        }
+        // passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
 
         // std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
       }
-      const auto stop = absl::Now();
-      std::cout << "Total duration: " << stop - start << std::endl;
 
       for (const auto &p_and_f : passes_and_fails)
       {
