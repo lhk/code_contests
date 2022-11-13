@@ -119,7 +119,6 @@ while t:
         }
         if (test.language() == test.PYTHON3)
         {
-          std::cout << "found a python 3 solution" << std::endl;
           solutions.push_back(test.solution());
         }
       }
@@ -212,7 +211,7 @@ while t:
       Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
       TestOptions options;
       options.max_execution_duration = absl::Seconds(5);
-      options.num_threads = 4;
+      options.num_threads = 12;
       options.stop_on_first_failure = true;
 
       // iterate through problems
@@ -225,8 +224,6 @@ while t:
       const auto start = absl::Now();
       while (reader.ReadRecord(problem))
       {
-
-        std::cout << "managed to parse solutions" << std::endl;
         const std::vector<absl::string_view> inputs =
             GetInputs(problem,
                       /*max_size=*/-1); // -1 for no resizing
@@ -246,7 +243,7 @@ while t:
         for (const auto &solution : solutions)
         {
           ASSIGN_OR_RETURN(MultiTestResult result,
-                           tester.Test(kGoodSolution, inputs, options, outputs));
+                           tester.Test(solution, inputs, options, outputs));
 
           // ReportResults(result);
           if (DidItPass(result))
@@ -265,6 +262,7 @@ while t:
             break;
           }
         }
+        std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
         passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
 
         // std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
