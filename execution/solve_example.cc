@@ -99,8 +99,10 @@ while t:
         inputs.push_back(test.input());
       }
 
-      if(max_size>-1){
-      inputs.resize(max_size);}
+      if (max_size > -1)
+      {
+        inputs.resize(max_size);
+      }
       return inputs;
     }
 
@@ -108,7 +110,7 @@ while t:
                                                        int max_size)
     {
       std::vector<absl::string_view> solutions;
-      //solutions.push_back(kGoodSolution);
+      // solutions.push_back(kGoodSolution);
       for (const auto &test : problem.solutions())
       {
         if (!test.has_solution())
@@ -121,8 +123,10 @@ while t:
           solutions.push_back(test.solution());
         }
       }
-      if(max_size>-1){
-      solutions.resize(max_size);}
+      if (max_size > -1)
+      {
+        solutions.resize(max_size);
+      }
       return solutions;
     }
 
@@ -142,7 +146,8 @@ while t:
       {
         outputs.push_back(test.output());
       }
-      if(max_size>-1){
+      if (max_size > -1)
+      {
         outputs.resize(max_size);
       }
       return outputs;
@@ -177,8 +182,8 @@ while t:
 
     bool DidItPass(const MultiTestResult &multi_result)
     {
-      if (! (multi_result.compilation_result.program_status ==
-          ProgramStatus::kSuccess))
+      if (!(multi_result.compilation_result.program_status ==
+            ProgramStatus::kSuccess))
       {
         return false;
       }
@@ -206,7 +211,7 @@ while t:
       // set up evaluation environment
       Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
       TestOptions options;
-      options.max_execution_duration=absl::Seconds(5);
+      options.max_execution_duration = absl::Seconds(5);
       options.num_threads = 4;
       options.stop_on_first_failure = true;
 
@@ -216,7 +221,7 @@ while t:
       ContestProblem problem;
 
       int num_problems = 0;
-      std::vector<std::tuple<int, int> > passes_and_fails;
+      std::vector<std::tuple<int, int>> passes_and_fails;
       const auto start = absl::Now();
       while (reader.ReadRecord(problem))
       {
@@ -243,32 +248,34 @@ while t:
           ASSIGN_OR_RETURN(MultiTestResult result,
                            tester.Test(kGoodSolution, inputs, options, outputs));
 
-          //ReportResults(result);
+          // ReportResults(result);
           if (DidItPass(result))
           {
             num_passed++;
-            //std::cout << "passed" << std::endl;
+            // std::cout << "passed" << std::endl;
           }
           else
           {
             // ReportResults(result);
             num_failed++;
-            //std::cout << "failed" << std::endl;
+            // std::cout << "failed" << std::endl;
           }
-          if(num_passed + num_failed >= max_per_problem){
+          if (num_passed + num_failed >= max_per_problem)
+          {
             break;
           }
         }
         passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
 
-        //std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
+        // std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
       }
       const auto stop = absl::Now();
-      std::cout<<"Total duration: "<<stop-start<<std::endl;
-      
-      for(const auto& p_and_f : passes_and_fails){
+      std::cout << "Total duration: " << stop - start << std::endl;
 
-      std::cout<<std::get<0>(p_and_f)<<","<<std::get<1>(p_and_f)<<std::endl;
+      for (const auto &p_and_f : passes_and_fails)
+      {
+
+        std::cout << std::get<0>(p_and_f) << "," << std::get<1>(p_and_f) << std::endl;
       }
 
       return absl::OkStatus();
