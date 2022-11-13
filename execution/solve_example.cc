@@ -45,6 +45,7 @@ namespace deepmind::code_contests
   {
 
     constexpr absl::string_view kGoodSolution = R"py(
+# good solution
 t = int(input())
 while t:
   n = int(input())
@@ -105,8 +106,13 @@ while t:
                                                        int max_size)
     {
       std::vector<absl::string_view> solutions;
+      solutions.push_back(kGoodSolution);
       for (const auto &test : problem.solutions())
       {
+        if (!test.has_solution())
+        {
+          continue;
+        }
         if (test.language() == test.PYTHON3)
         {
           std::cout << "found a python 3 solution" << std::endl;
@@ -164,12 +170,38 @@ while t:
       }
     }
 
+    bool DidItPass(const MultiTestResult &multi_result)
+    {
+      if (! (multi_result.compilation_result.program_status ==
+          ProgramStatus::kSuccess))
+      {
+        return false;
+      }
+      for (const auto &test_result : multi_result.test_results)
+      {
+        if (!test_result.passed.has_value())
+        {
+          return false;
+        }
+        else if (*test_result.passed)
+        {
+          // nothing to do here
+        }
+        else
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
     absl::Status SolveAll(const absl::string_view filename)
     {
 
       // set up evaluation environment
       Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
       TestOptions options;
+      // options.max_execution_duration=absl::Seconds(5);
       options.num_threads = 4;
       options.stop_on_first_failure = true;
 
@@ -181,26 +213,58 @@ while t:
       int num_problems = 0;
       while (reader.ReadRecord(problem))
       {
+        if (problem.name() != "1549_A. Gregor and Cryptography")
+        {
+          continue;
+        }
+
         std::cout << "managed to parse solutions" << std::endl;
         const std::vector<absl::string_view> inputs =
             GetInputs(problem,
-                      /*max_size=*/10000);
+                      /*max_size=*/10);
         const std::vector<absl::string_view> outputs =
             GetOutputs(problem,
-                       /*max_size=*/10000);
+                       /*max_size=*/10);
         const std::vector<absl::string_view> solutions =
             GetPython3Solutions(problem,
-                                /*max_size=*/10000);
+                                /*max_size=*/10);
 
+        int num_passed = 0;
+        int num_failed = 0;
+        int sol_idx = 0;
         for (const auto &solution : solutions)
         {
-
+          std::cout << sol_idx << std::endl;
+          std::cout << solution << std::endl;
           ASSIGN_OR_RETURN(MultiTestResult result,
-                           tester.Test(solution, inputs, options, outputs));
-          ReportResults(result);
-        }
+                           tester.Test(kGoodSolution, inputs, options, outputs));
 
-        break;
+          ReportResults(result);
+          std::cout << "sandbox result status" << result.compilation_result.SandboxResultStatus().ok() << std::endl;
+          bool tests_ok = true;
+          for (const auto &r : result.test_results)
+          {
+            std::cout << (r.SandboxResultStatus().ok()) << std::endl;
+          }
+          break;
+
+          ExecutionResult comp_result = result.compilation_result;
+          std::cout << comp_result << std::endl;
+          if (comp_result.passed)
+          {
+            num_passed++;
+            std::cout << "passed" << std::endl;
+          }
+          else
+          {
+            // ReportResults(result);
+            num_failed++;
+            std::cout << "failed" << std::endl;
+          }
+          sol_idx += 1;
+          break;
+        }
+        std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
       }
 
       return absl::OkStatus();
@@ -238,6 +302,7 @@ An invalid program is reported as not compiling:
       ASSIGN_OR_RETURN(MultiTestResult invalid_result,
                        tester.Test(kInvalidSolution, inputs, options, outputs));
       ReportResults(invalid_result);
+      std::cout << "sandbox result status" << invalid_result.compilation_result.SandboxResultStatus().ok() << std::endl;
 
       std::cout << R"(
 --------------------------------------------------------------------------------
@@ -250,7 +315,12 @@ before all threads stop.
       ASSIGN_OR_RETURN(MultiTestResult bad_result,
                        tester.Test(kBadSolution, inputs, options, outputs));
       ReportResults(bad_result);
-
+      std::cout << "sandbox result status" << bad_result.compilation_result.SandboxResultStatus().ok() << std::endl;
+      for (const auto &res : bad_result.test_results)
+      {
+        std::cout << res.SandboxResultStatus().ok() << std::endl;
+        std::cout << res.sandbox_result << std::endl;
+      }
       std::cout << R"(
 --------------------------------------------------------------------------------
 The good solution passes all tests.
@@ -260,6 +330,7 @@ The good solution passes all tests.
       ASSIGN_OR_RETURN(MultiTestResult good_result,
                        tester.Test(kGoodSolution, inputs, options, outputs));
       ReportResults(good_result);
+      std::cout << "sandbox result status" << good_result.compilation_result.SandboxResultStatus().ok() << std::endl;
 
       return absl::OkStatus();
     }
@@ -271,7 +342,7 @@ int main(int argc, char *argv[])
 {
   std::cout << "starting" << std::endl;
   absl::ParseCommandLine(argc, argv);
-  if (absl::Status status = deepmind::code_contests::SolveAll(
+  if (absl::Status status = deepmind::code_contests::SolveGregorAndCryptography(
           absl::GetFlag(FLAGS_valid_path));
       !status.ok())
   {
