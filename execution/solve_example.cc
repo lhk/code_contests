@@ -98,7 +98,9 @@ while t:
       {
         inputs.push_back(test.input());
       }
-      inputs.resize(max_size);
+
+      if(max_size>-1){
+      inputs.resize(max_size);}
       return inputs;
     }
 
@@ -106,7 +108,7 @@ while t:
                                                        int max_size)
     {
       std::vector<absl::string_view> solutions;
-      solutions.push_back(kGoodSolution);
+      //solutions.push_back(kGoodSolution);
       for (const auto &test : problem.solutions())
       {
         if (!test.has_solution())
@@ -119,7 +121,8 @@ while t:
           solutions.push_back(test.solution());
         }
       }
-      solutions.resize(max_size);
+      if(max_size>-1){
+      solutions.resize(max_size);}
       return solutions;
     }
 
@@ -139,7 +142,9 @@ while t:
       {
         outputs.push_back(test.output());
       }
-      outputs.resize(max_size);
+      if(max_size>-1){
+        outputs.resize(max_size);
+      }
       return outputs;
     }
 
@@ -201,7 +206,7 @@ while t:
       // set up evaluation environment
       Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
       TestOptions options;
-      // options.max_execution_duration=absl::Seconds(5);
+      options.max_execution_duration=absl::Seconds(5);
       options.num_threads = 4;
       options.stop_on_first_failure = true;
 
@@ -211,60 +216,59 @@ while t:
       ContestProblem problem;
 
       int num_problems = 0;
+      std::vector<std::tuple<int, int> > passes_and_fails;
+      const auto start = absl::Now();
       while (reader.ReadRecord(problem))
       {
-        if (problem.name() != "1549_A. Gregor and Cryptography")
-        {
-          continue;
-        }
 
         std::cout << "managed to parse solutions" << std::endl;
         const std::vector<absl::string_view> inputs =
             GetInputs(problem,
-                      /*max_size=*/10);
+                      /*max_size=*/-1); // -1 for no resizing
         const std::vector<absl::string_view> outputs =
             GetOutputs(problem,
-                       /*max_size=*/10);
+                       /*max_size=*/-1);
+
         const std::vector<absl::string_view> solutions =
             GetPython3Solutions(problem,
-                                /*max_size=*/10);
+                                /*max_size=*/-1);
 
         int num_passed = 0;
         int num_failed = 0;
-        int sol_idx = 0;
+
+        // if we want to evaluate only a subset
+        int max_per_problem = 10;
         for (const auto &solution : solutions)
         {
-          std::cout << sol_idx << std::endl;
-          std::cout << solution << std::endl;
           ASSIGN_OR_RETURN(MultiTestResult result,
                            tester.Test(kGoodSolution, inputs, options, outputs));
 
-          ReportResults(result);
-          std::cout << "sandbox result status" << result.compilation_result.SandboxResultStatus().ok() << std::endl;
-          bool tests_ok = true;
-          for (const auto &r : result.test_results)
-          {
-            std::cout << (r.SandboxResultStatus().ok()) << std::endl;
-          }
-          break;
-
-          ExecutionResult comp_result = result.compilation_result;
-          std::cout << comp_result << std::endl;
-          if (comp_result.passed)
+          //ReportResults(result);
+          if (DidItPass(result))
           {
             num_passed++;
-            std::cout << "passed" << std::endl;
+            //std::cout << "passed" << std::endl;
           }
           else
           {
             // ReportResults(result);
             num_failed++;
-            std::cout << "failed" << std::endl;
+            //std::cout << "failed" << std::endl;
           }
-          sol_idx += 1;
-          break;
+          if(num_passed + num_failed >= max_per_problem){
+            break;
+          }
         }
-        std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
+        passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
+
+        //std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
+      }
+      const auto stop = absl::Now();
+      std::cout<<"Total duration: "<<stop-start<<std::endl;
+      
+      for(const auto& p_and_f : passes_and_fails){
+
+      std::cout<<std::get<0>(p_and_f)<<","<<std::get<1>(p_and_f)<<std::endl;
       }
 
       return absl::OkStatus();
@@ -342,7 +346,7 @@ int main(int argc, char *argv[])
 {
   std::cout << "starting" << std::endl;
   absl::ParseCommandLine(argc, argv);
-  if (absl::Status status = deepmind::code_contests::SolveGregorAndCryptography(
+  if (absl::Status status = deepmind::code_contests::SolveAll(
           absl::GetFlag(FLAGS_valid_path));
       !status.ok())
   {
