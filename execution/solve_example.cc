@@ -224,6 +224,9 @@ while t:
       const auto start = absl::Now();
       while (reader.ReadRecord(problem))
       {
+          if(problem.name()!="1549_A. Gregor and Cryptography"){
+            continue;
+          }
         const std::vector<absl::string_view> inputs =
             GetInputs(problem,
                       /*max_size=*/-1); // -1 for no resizing
@@ -263,7 +266,7 @@ while t:
           }
         }
         std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
-        passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
+        //passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
 
         // std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
       }
