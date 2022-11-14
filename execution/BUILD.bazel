@@ -87,6 +87,7 @@ cc_binary(
         ":py_locations",
         ":py_tester_sandboxer",
         ":status_macros",
+        ":nlohman_json",
         ":tester_sandboxer",
         "//:contest_problem_cc_proto",
         "@com_google_absl//absl/flags:flag",
@@ -107,6 +108,12 @@ cc_library(
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/status",
     ],
+)
+
+cc_library(
+    name = "nlohman_json",
+    hdrs = ["json.hpp"],
+    deps = [],
 )
 
 cc_library(

@@ -19,6 +19,7 @@
 
 #include <functional>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -36,9 +37,12 @@
 #include "execution/tester_sandboxer.h"
 #include "riegeli/bytes/fd_reader.h"
 #include "riegeli/records/record_reader.h"
+#include "execution/json.hpp"
 
 ABSL_FLAG(std::string, valid_path, "", "Path to validation dataset.");
+ABSL_FLAG(std::string, input_path, "", "Path to input dataset.");
 
+using json = nlohmann::json;
 namespace deepmind::code_contests
 {
   namespace
@@ -227,6 +231,7 @@ while t:
         {
           continue;
         }
+        std::cout<<"found the problem"<<std::endl;
 
         const auto start = absl::Now();
         const std::vector<absl::string_view> inputs =
@@ -362,8 +367,16 @@ The good solution passes all tests.
 
 int main(int argc, char *argv[])
 {
-  std::cout << "starting" << std::endl;
   absl::ParseCommandLine(argc, argv);
+  std::cout << "starting" << std::endl;
+
+    std::string input_path = absl::GetFlag(FLAGS_input_path);
+    std::cout<<"input path: "<<input_path<<std::endl;
+    
+    std::ifstream input_file (input_path);
+    json data = json::parse(input_file);
+
+
   if (absl::Status status = deepmind::code_contests::SolveAll(
           absl::GetFlag(FLAGS_valid_path));
       !status.ok())
