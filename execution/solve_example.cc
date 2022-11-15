@@ -231,7 +231,7 @@ while t:
         {
           continue;
         }
-        std::cout<<"found the problem"<<std::endl;
+        std::cout << "found the problem" << std::endl;
 
         const auto start = absl::Now();
         const std::vector<absl::string_view> inputs =
@@ -271,7 +271,7 @@ while t:
           }
           if (num_passed + num_failed >= max_per_problem)
           {
-            std::cout<<solution<<std::endl;
+            std::cout << solution << std::endl;
             break;
           }
         }
@@ -280,7 +280,8 @@ while t:
         const auto stop = absl::Now();
         std::cout << "Total duration: " << stop - start << std::endl;
 
-        for(const auto& t : passorfail){
+        for (const auto &t : passorfail)
+        {
           std::cout << t << std::endl;
         }
         // passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
@@ -370,12 +371,11 @@ int main(int argc, char *argv[])
   absl::ParseCommandLine(argc, argv);
   std::cout << "starting" << std::endl;
 
-    std::string input_path = absl::GetFlag(FLAGS_input_path);
-    std::cout<<"input path: "<<input_path<<std::endl;
-    
-    std::ifstream input_file (input_path);
-    json data = json::parse(input_file);
+  std::string input_path = absl::GetFlag(FLAGS_input_path);
+  std::cout << "input path: " << input_path << std::endl;
 
+  std::ifstream input_file(input_path);
+  json data = json::parse(input_file);
 
   if (absl::Status status = deepmind::code_contests::SolveAll(
           absl::GetFlag(FLAGS_valid_path));
