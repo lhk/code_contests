@@ -41,6 +41,7 @@
 
 ABSL_FLAG(std::string, valid_path, "", "Path to validation dataset.");
 ABSL_FLAG(std::string, input_path, "", "Path to input dataset.");
+ABSL_FLAG(std::string, output_path, "", "Path to output file.");
 
 using json = nlohmann::json;
 using namespace std;
@@ -220,7 +221,8 @@ while t:
       CandidateSolution(int idx, string name, string generated, bool evaluated, bool passed) : idx(idx), name(name), generated(generated), evaluated(evaluated), passed(passed) {}
     };
 
-    absl::Status SolveAll(const absl::string_view valid_path, const std::string input_path)
+    absl::Status SolveAll(const absl::string_view valid_path, 
+      const std::string input_path, const std::string output_path)
     {
       // parse JSON inputs
       std::ifstream input_file(input_path);
@@ -254,7 +256,6 @@ while t:
       vector<json> test_results;
       while (reader.ReadRecord(problem))
       {
-        cout << problem.name() << endl;
         vector<CandidateSolution> generated_for_this_problem;
         bool found = false;
         for (const auto &s : generated_solutions)
@@ -313,8 +314,12 @@ while t:
 
       json final_output;
       final_output["results"] = test_results;
-      cout << "--------------------------" << endl;
-      cout << final_output.dump() << endl;
+
+      cout<<"writing output to: "<<output_path<<endl;
+      std::ofstream output_file(output_path);
+      output_file << final_output.dump();
+      output_file.flush();
+      output_file.close();
 
       return absl::OkStatus();
     }
@@ -483,7 +488,9 @@ int main(int argc, char *argv[])
   std::cout << "starting" << std::endl;
 
   if (absl::Status status = deepmind::code_contests::SolveAll(
-          absl::GetFlag(FLAGS_valid_path), absl::GetFlag(FLAGS_input_path));
+          absl::GetFlag(FLAGS_valid_path), 
+          absl::GetFlag(FLAGS_input_path), 
+          absl::GetFlag(FLAGS_output_path));
       !status.ok())
   {
     std::cerr << "Failed: " << status.message() << std::endl;
