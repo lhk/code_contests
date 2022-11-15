@@ -1,54 +1,19 @@
 {
-	"numOfQues": 5,
-	"questions": [{
-			"question": "Who is the US President?",
-			"options": [
-				"Joe Biden",
-				"Joe BIREN",
-				"Joe Momma",
-				"Joe Bein"
-			],
-			"answer": 2
+	"generations": [
+		{
+			"name": "1549_A. Gregor and Cryptography",
+			"idx": 0,
+			"generated": "# good solution\nt = int(input())\nwhile t:\n    n = int(input())\n    print(2, n-1)\n     t -= 1"
 		},
 		{
-			"question": "Who scored the best goal in Puskas history?",
-			"options": [
-				"Erik Lamela",
-				"Son Heung-Min",
-				"Cristiano Ronaldo",
-				"Wayne Rooney"
-			],
-			"answer": 4
+			"name": "1549_A. Gregor and Cryptography",
+			"idx": 1,
+			"generated": "def i():\n  print('1')"
 		},
 		{
-			"question": "Where should Lamela really have finished?",
-			"options": [
-				"First",
-				"Second",
-				"Third",
-				"Fourth"
-			],
-			"answer": 3
-		},
-		{
-			"question": "What does Conor love?",
-			"options": [
-				"Breaking curbs",
-				"Breathing",
-				"Having shit football opinions",
-				"Being from Carlow"
-			],
-			"answer": 1
-		},
-		{
-			"question": "Who is the best footballer ever?",
-			"options": [
-				"Eric Dier",
-				"Emile Heskey",
-				"Bobby Zamora",
-				"Phil Jones"
-			],
-			"answer": 4
+			"name": "1549_A. Gregor and Cryptography",
+			"idx": 2,
+			"generated": "def i():\n  print('2')"
 		}
 	]
 }

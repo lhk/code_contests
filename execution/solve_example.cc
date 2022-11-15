@@ -43,6 +43,7 @@ ABSL_FLAG(std::string, valid_path, "", "Path to validation dataset.");
 ABSL_FLAG(std::string, input_path, "", "Path to input dataset.");
 
 using json = nlohmann::json;
+using namespace std;
 namespace deepmind::code_contests
 {
   namespace
@@ -208,7 +209,84 @@ while t:
       return true;
     }
 
-    absl::Status SolveAll(const absl::string_view filename)
+    absl::Status SolveAll(const absl::string_view valid_path, const absl::string_view input_path)
+    {
+      // parse JSON inputs
+      std::ifstream input_file(input_path);
+      json data = json::parse(input_file);
+
+      // set up evaluation environment
+      Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
+      TestOptions options;
+      options.max_execution_duration = absl::Seconds(5);
+      options.num_threads = 12;
+      options.stop_on_first_failure = true;
+
+      // iterate through problems
+      riegeli::RecordReader<riegeli::FdReader<>> reader(
+          std::forward_as_tuple(valid_path));
+      ContestProblem problem;
+
+      vector<json> test_results;
+      while (reader.ReadRecord(problem))
+      {
+        vector<json> generations = data["generations"];
+        vector<json> generations_for_this_problem;
+        bool found_a_generation = false;
+        for (const auto &g : generations)
+        {
+          if (problem.name() == g["name"])
+          {
+            // g["found"]=true;
+            generations_for_this_problem.push_back(g);
+            found_a_generation = true;
+          }
+        }
+        if (!found_a_generation)
+        {
+          continue;
+        }
+
+        const std::vector<absl::string_view> inputs =
+            GetInputs(problem,
+                      /*max_size=*/-1); // -1 for no resizing
+        const std::vector<absl::string_view> outputs =
+            GetOutputs(problem,
+                       /*max_size=*/-1);
+
+        // if we want to evaluate only a subset
+        int max_per_problem = 50;
+        std::vector<int> passorfail;
+        for (const auto &g : generations_for_this_problem)
+        {
+
+          std::string solution = g['generated'];
+          ASSIGN_OR_RETURN(MultiTestResult result,
+                           tester.Test(solution, inputs, options, outputs));
+
+          // ReportResults(result);
+          passorfail.push_back(DidItPass(result));
+          json res;
+          res["generated"] = solution;
+          res["idx"] = g["idx"];
+          res["name"] = g["name"];
+          res["passed"] = DidItPass(result);
+
+          if (DidItPass(result))
+          {
+            std::cout << "passed" << std::endl;
+          }
+          else
+          {
+            std::cout << "failed" << std::endl;
+          }
+        }
+
+        return absl::OkStatus();
+      }
+    }
+
+    absl::Status SolveValid(const absl::string_view valid_path)
     {
 
       // set up evaluation environment
@@ -220,7 +298,7 @@ while t:
 
       // iterate through problems
       riegeli::RecordReader<riegeli::FdReader<>> reader(
-          std::forward_as_tuple(filename));
+          std::forward_as_tuple(valid_path));
       ContestProblem problem;
 
       int num_problems = 0;
@@ -371,14 +449,8 @@ int main(int argc, char *argv[])
   absl::ParseCommandLine(argc, argv);
   std::cout << "starting" << std::endl;
 
-  std::string input_path = absl::GetFlag(FLAGS_input_path);
-  std::cout << "input path: " << input_path << std::endl;
-
-  std::ifstream input_file(input_path);
-  json data = json::parse(input_file);
-
   if (absl::Status status = deepmind::code_contests::SolveAll(
-          absl::GetFlag(FLAGS_valid_path));
+          absl::GetFlag(FLAGS_valid_path), absl::GetFlag(FLAGS_input_path));
       !status.ok())
   {
     std::cerr << "Failed: " << status.message() << std::endl;
