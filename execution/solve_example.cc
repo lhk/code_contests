@@ -209,11 +209,37 @@ while t:
       return true;
     }
 
-    absl::Status SolveAll(const absl::string_view valid_path, const absl::string_view input_path)
+    struct CandidateSolution
+    {
+      int idx;
+      string name;
+      string generated;
+      bool evaluated;
+      bool passed;
+
+      CandidateSolution(int idx, string name, string generated, bool evaluated, bool passed):
+        idx(idx), name(name), generated(generated), evaluated(evaluated), passed(passed){}
+    };
+
+    absl::Status SolveAll(const absl::string_view valid_path, const std::string input_path)
     {
       // parse JSON inputs
       std::ifstream input_file(input_path);
       json data = json::parse(input_file);
+      input_file.close();
+      vector<CandidateSolution> generated_solutions;
+
+      vector<json> generations = data["generations"];
+      for (const auto &g : generations)
+      {
+        int idx = g["idx"];
+        string name = g["name"];
+        string solution = g["generated"];
+        cout<<idx<<name<<solution<<endl;
+        CandidateSolution cs(idx, name, solution, false, false);
+        generated_solutions.push_back(cs);
+      }
+      cout << "parsed the input json" << endl;
 
       // set up evaluation environment
       Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
@@ -230,20 +256,20 @@ while t:
       vector<json> test_results;
       while (reader.ReadRecord(problem))
       {
-        vector<json> generations = data["generations"];
-        vector<json> generations_for_this_problem;
-        bool found_a_generation = false;
-        for (const auto &g : generations)
-        {
-          if (problem.name() == g["name"])
-          {
-            // g["found"]=true;
-            generations_for_this_problem.push_back(g);
-            found_a_generation = true;
+        cout<<problem.name()<<endl;
+        vector<CandidateSolution> generated_for_this_problem;
+        bool found=false;
+        for(const auto& s : generated_solutions){
+          if(s.name == problem.name()){
+            generated_for_this_problem.push_back(s);
+            found=true;
           }
         }
-        if (!found_a_generation)
-        {
+        if(found){
+          cout << "found a generation" << endl;
+        }
+        else{
+          cout<<"continuing"<<endl;
           continue;
         }
 
@@ -254,23 +280,15 @@ while t:
             GetOutputs(problem,
                        /*max_size=*/-1);
 
-        // if we want to evaluate only a subset
-        int max_per_problem = 50;
         std::vector<int> passorfail;
-        for (const auto &g : generations_for_this_problem)
-        {
-
-          std::string solution = g['generated'];
+        for(const auto& g : generated_for_this_problem){
+          std::string solution = g.generated;
+          cout<<solution<<endl;
           ASSIGN_OR_RETURN(MultiTestResult result,
                            tester.Test(solution, inputs, options, outputs));
 
           // ReportResults(result);
           passorfail.push_back(DidItPass(result));
-          json res;
-          res["generated"] = solution;
-          res["idx"] = g["idx"];
-          res["name"] = g["name"];
-          res["passed"] = DidItPass(result);
 
           if (DidItPass(result))
           {
@@ -280,10 +298,11 @@ while t:
           {
             std::cout << "failed" << std::endl;
           }
+        
         }
-
         return absl::OkStatus();
       }
+      cout << "done" << endl;
     }
 
     absl::Status SolveValid(const absl::string_view valid_path)
