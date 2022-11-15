@@ -217,8 +217,7 @@ while t:
       bool evaluated;
       bool passed;
 
-      CandidateSolution(int idx, string name, string generated, bool evaluated, bool passed):
-        idx(idx), name(name), generated(generated), evaluated(evaluated), passed(passed){}
+      CandidateSolution(int idx, string name, string generated, bool evaluated, bool passed) : idx(idx), name(name), generated(generated), evaluated(evaluated), passed(passed) {}
     };
 
     absl::Status SolveAll(const absl::string_view valid_path, const std::string input_path)
@@ -235,7 +234,6 @@ while t:
         int idx = g["idx"];
         string name = g["name"];
         string solution = g["generated"];
-        cout<<idx<<name<<solution<<endl;
         CandidateSolution cs(idx, name, solution, false, false);
         generated_solutions.push_back(cs);
       }
@@ -256,20 +254,23 @@ while t:
       vector<json> test_results;
       while (reader.ReadRecord(problem))
       {
-        cout<<problem.name()<<endl;
+        cout << problem.name() << endl;
         vector<CandidateSolution> generated_for_this_problem;
-        bool found=false;
-        for(const auto& s : generated_solutions){
-          if(s.name == problem.name()){
+        bool found = false;
+        for (const auto &s : generated_solutions)
+        {
+          if (s.name == problem.name())
+          {
             generated_for_this_problem.push_back(s);
-            found=true;
+            found = true;
           }
         }
-        if(found){
+        if (found)
+        {
           cout << "found a generation" << endl;
         }
-        else{
-          cout<<"continuing"<<endl;
+        else
+        {
           continue;
         }
 
@@ -281,16 +282,25 @@ while t:
                        /*max_size=*/-1);
 
         std::vector<int> passorfail;
-        for(const auto& g : generated_for_this_problem){
+        for (const auto &g : generated_for_this_problem)
+        {
           std::string solution = g.generated;
-          cout<<solution<<endl;
+          cout << solution << endl;
           ASSIGN_OR_RETURN(MultiTestResult result,
                            tester.Test(solution, inputs, options, outputs));
 
           // ReportResults(result);
-          passorfail.push_back(DidItPass(result));
+          bool passed = DidItPass(result);
+          passorfail.push_back(passed);
 
-          if (DidItPass(result))
+          json res;
+          res["name"] = g.name;
+          res["idx"] = g.idx;
+          res["generated"] = g.generated;
+          res["passed"] = passed;
+          test_results.push_back(res);
+
+          if (passed)
           {
             std::cout << "passed" << std::endl;
           }
@@ -298,11 +308,15 @@ while t:
           {
             std::cout << "failed" << std::endl;
           }
-        
         }
-        return absl::OkStatus();
       }
-      cout << "done" << endl;
+
+      json final_output;
+      final_output["results"] = test_results;
+      cout << "--------------------------" << endl;
+      cout << final_output.dump() << endl;
+
+      return absl::OkStatus();
     }
 
     absl::Status SolveValid(const absl::string_view valid_path)
