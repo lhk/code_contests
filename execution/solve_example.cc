@@ -29,6 +29,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/strings/str_format.h"
 #include "absl/types/span.h"
 #include "contest_problem.pb.h"
 #include "execution/py_locations.h"
@@ -221,8 +222,8 @@ while t:
       CandidateSolution(int idx, string name, string generated, bool evaluated, bool passed) : idx(idx), name(name), generated(generated), evaluated(evaluated), passed(passed) {}
     };
 
-    absl::Status SolveAll(const absl::string_view valid_path, 
-      const std::string input_path, const std::string output_path)
+    absl::Status SolveAll(const absl::string_view valid_path,
+                          const std::string input_path, const std::string output_path)
     {
       // parse JSON inputs
       std::ifstream input_file(input_path);
@@ -294,11 +295,12 @@ while t:
           // ReportResults(result);
           bool passed3 = DidItPass(result3);
           bool passed2 = false;
-          if(!passed3){
-          ASSIGN_OR_RETURN(MultiTestResult result2,
-                           tester2.Test(solution, inputs, options, outputs));
-          // ReportResults(result);
-          passed2 = DidItPass(result2);
+          if (!passed3)
+          {
+            ASSIGN_OR_RETURN(MultiTestResult result2,
+                             tester2.Test(solution, inputs, options, outputs));
+            // ReportResults(result);
+            passed2 = DidItPass(result2);
           }
 
           bool passed = passed3 || passed2;
@@ -324,7 +326,7 @@ while t:
       json final_output;
       final_output["results"] = test_results;
 
-      cout<<"writing output to: "<<output_path<<endl;
+      cout << "writing output to: " << output_path << endl;
       std::ofstream output_file(output_path);
       output_file << final_output.dump();
       output_file.flush();
@@ -333,7 +335,7 @@ while t:
       return absl::OkStatus();
     }
 
-    absl::Status SolveValid(const absl::string_view valid_path)
+    absl::Status SolveReferenceSolution(const std::string valid_path)
     {
 
       // set up evaluation environment
@@ -343,81 +345,100 @@ while t:
       options.num_threads = 12;
       options.stop_on_first_failure = true;
 
-      // iterate through problems
-      riegeli::RecordReader<riegeli::FdReader<>> reader(
-          std::forward_as_tuple(valid_path));
-      ContestProblem problem;
-
-      int num_problems = 0;
-      std::vector<std::tuple<int, int>> passes_and_fails;
-      while (reader.ReadRecord(problem))
+      vector<string> filenames;
+      if (valid_path.find("train") != string::npos)
       {
-        if (problem.name() != "1549_A. Gregor and Cryptography")
+        for (int i = 0; i <= 128; i++)
         {
-          continue;
+          const auto str = absl::StrFormat("%0*d", 5, i);
+          const auto complete_path = valid_path + "-" + str + "-of-00128";
+          filenames.push_back(complete_path);
         }
-        std::cout << "found the problem" << std::endl;
-
-        const auto start = absl::Now();
-        const std::vector<absl::string_view> inputs =
-            GetInputs(problem,
-                      /*max_size=*/-1); // -1 for no resizing
-        const std::vector<absl::string_view> outputs =
-            GetOutputs(problem,
-                       /*max_size=*/-1);
-
-        const std::vector<absl::string_view> solutions =
-            GetPython3Solutions(problem,
-                                /*max_size=*/-1);
-
-        int num_passed = 0;
-        int num_failed = 0;
-
-        // if we want to evaluate only a subset
-        int max_per_problem = 50;
-        std::vector<int> passorfail;
-        for (const auto &solution : solutions)
-        {
-          ASSIGN_OR_RETURN(MultiTestResult result,
-                           tester.Test(solution, inputs, options, outputs));
-
-          // ReportResults(result);
-          passorfail.push_back(DidItPass(result));
-          if (DidItPass(result))
-          {
-            num_passed++;
-            // std::cout << "passed" << std::endl;
-          }
-          else
-          {
-            // ReportResults(result);
-            num_failed++;
-            // std::cout << "failed" << std::endl;
-          }
-          if (num_passed + num_failed >= max_per_problem)
-          {
-            std::cout << solution << std::endl;
-            break;
-          }
-        }
-        std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
-
-        const auto stop = absl::Now();
-        std::cout << "Total duration: " << stop - start << std::endl;
-
-        for (const auto &t : passorfail)
-        {
-          std::cout << t << std::endl;
-        }
-        // passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
-
-        // std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
+      }
+      else
+      {
+        filenames.push_back(valid_path);
       }
 
-      for (const auto &p_and_f : passes_and_fails)
+      for (const auto &filename : filenames)
       {
 
-        std::cout << std::get<0>(p_and_f) << "," << std::get<1>(p_and_f) << std::endl;
+        // iterate through problems
+        riegeli::RecordReader<riegeli::FdReader<>> reader(
+            std::forward_as_tuple(filename));
+        ContestProblem problem;
+
+        int num_problems = 0;
+        std::vector<std::tuple<int, int>> passes_and_fails;
+        while (reader.ReadRecord(problem))
+        {
+          if (problem.name() != "1091_G. New Year and the Factorisation Collaboration")
+          {
+            continue;
+          }
+          std::cout << "found the problem" << std::endl;
+
+          const auto start = absl::Now();
+          const std::vector<absl::string_view> inputs =
+              GetInputs(problem,
+                        /*max_size=*/-1); // -1 for no resizing
+          const std::vector<absl::string_view> outputs =
+              GetOutputs(problem,
+                         /*max_size=*/-1);
+
+          const std::vector<absl::string_view> solutions =
+              GetPython3Solutions(problem,
+                                  /*max_size=*/-1);
+
+          int num_passed = 0;
+          int num_failed = 0;
+
+          // if we want to evaluate only a subset
+          int max_per_problem = 50;
+          std::vector<int> passorfail;
+          for (const auto &solution : solutions)
+          {
+            ASSIGN_OR_RETURN(MultiTestResult result,
+                             tester.Test(solution, inputs, options, outputs));
+
+            // ReportResults(result);
+            passorfail.push_back(DidItPass(result));
+            if (DidItPass(result))
+            {
+              num_passed++;
+              // std::cout << "passed" << std::endl;
+            }
+            else
+            {
+              // ReportResults(result);
+              num_failed++;
+              // std::cout << "failed" << std::endl;
+            }
+            if (num_passed + num_failed >= max_per_problem)
+            {
+              std::cout << solution << std::endl;
+              break;
+            }
+          }
+          std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
+
+          const auto stop = absl::Now();
+          std::cout << "Total duration: " << stop - start << std::endl;
+
+          for (const auto &t : passorfail)
+          {
+            std::cout << t << std::endl;
+          }
+          // passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
+
+          // std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
+        }
+
+        for (const auto &p_and_f : passes_and_fails)
+        {
+
+          std::cout << std::get<0>(p_and_f) << "," << std::get<1>(p_and_f) << std::endl;
+        }
       }
 
       return absl::OkStatus();
@@ -494,12 +515,13 @@ The good solution passes all tests.
 int main(int argc, char *argv[])
 {
   absl::ParseCommandLine(argc, argv);
-  std::cout << "starting" << std::endl;
+  std::cout << "start" << std::endl;
 
-  if (absl::Status status = deepmind::code_contests::SolveAll(
-          absl::GetFlag(FLAGS_valid_path), 
-          absl::GetFlag(FLAGS_input_path), 
-          absl::GetFlag(FLAGS_output_path));
+  if (absl::Status status = deepmind::code_contests::SolveReferenceSolution(
+          absl::GetFlag(FLAGS_valid_path) //,
+          // absl::GetFlag(FLAGS_input_path),
+          // absl::GetFlag(FLAGS_output_path)
+      );
       !status.ok())
   {
     std::cerr << "Failed: " << status.message() << std::endl;
