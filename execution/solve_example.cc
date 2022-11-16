@@ -242,10 +242,11 @@ while t:
       cout << "parsed the input json" << endl;
 
       // set up evaluation environment
-      Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
+      Py3TesterSandboxer tester3(Py3InterpreterPath(), Py3LibraryPaths());
+      Py2TesterSandboxer tester2(Py2InterpreterPath(), Py2LibraryPaths());
       TestOptions options;
       options.max_execution_duration = absl::Seconds(5);
-      options.num_threads = 12;
+      options.num_threads = 1;
       options.stop_on_first_failure = true;
 
       // iterate through problems
@@ -287,12 +288,20 @@ while t:
         {
           std::string solution = g.generated;
           cout << solution << endl;
-          ASSIGN_OR_RETURN(MultiTestResult result,
-                           tester.Test(solution, inputs, options, outputs));
 
+          ASSIGN_OR_RETURN(MultiTestResult result3,
+                           tester3.Test(solution, inputs, options, outputs));
           // ReportResults(result);
-          bool passed = DidItPass(result);
-          passorfail.push_back(passed);
+          bool passed3 = DidItPass(result3);
+          bool passed2 = false;
+          if(!passed3){
+          ASSIGN_OR_RETURN(MultiTestResult result2,
+                           tester2.Test(solution, inputs, options, outputs));
+          // ReportResults(result);
+          passed2 = DidItPass(result2);
+          }
+
+          bool passed = passed3 || passed2;
 
           json res;
           res["name"] = g.name;
