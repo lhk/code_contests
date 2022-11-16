@@ -335,6 +335,7 @@ while t:
       return absl::OkStatus();
     }
 
+    // this method iterates through a dataset and evaluates the reference solutions against the given tests
     absl::Status SolveReferenceSolution(const std::string valid_path)
     {
 
@@ -343,9 +344,11 @@ while t:
       Py2TesterSandboxer tester2(Py2InterpreterPath(), Py2LibraryPaths());
       TestOptions options;
       options.max_execution_duration = absl::Seconds(5);
-      options.num_threads = 12;
+      options.num_threads = 2;
       options.stop_on_first_failure = true;
 
+      // if we're evaluating solutions on the training set, we need to adjust the path
+      // the training set is split in 128 riegeli files
       vector<string> filenames;
       if (valid_path.find("train") != string::npos)
       {
@@ -361,6 +364,7 @@ while t:
         filenames.push_back(valid_path);
       }
 
+      // go through all the riegeli files in this dataset
       for (const auto &filename : filenames)
       {
 
@@ -368,19 +372,18 @@ while t:
         riegeli::RecordReader<riegeli::FdReader<>> reader(
             std::forward_as_tuple(filename));
         ContestProblem problem;
-
-        int num_problems = 0;
-        std::vector<std::tuple<int, int>> passes_and_fails;
+        vector<tuple<int, int>> passes_and_fails;
         while (reader.ReadRecord(problem))
         {
           // const auto name = "1091_G. New Year and the Factorisation Collaboration";
-          const auto name = "1276_E. Four Stones";
-          if (problem.name() != name)
-          {
-            continue;
-          }
-          std::cout << "found the problem" << std::endl;
-
+          // const auto name = "1575_A. Another Sorting Problem";
+          // if (problem.name() != name)
+          // {
+          //   continue;
+          //}
+          // std::cout << "found the problem" << std::endl;
+          cout<<"-----------------"<<endl;
+          cout<<problem.name()<<endl;
           const auto start = absl::Now();
           const std::vector<absl::string_view> inputs =
               GetInputs(problem,
@@ -389,21 +392,20 @@ while t:
               GetOutputs(problem,
                          /*max_size=*/-1);
 
+          // get solutions for python2 and 3 and concatenate them into one vector
           const std::vector<absl::string_view> py2_solutions =
               GetLangSolutions(problem,
                                /*max_size=*/-1, deepmind::code_contests::ContestProblem_Solution::Language::ContestProblem_Solution_Language_PYTHON);
-
           std::vector<absl::string_view> solutions = GetLangSolutions(problem,
-                                                                            /*max_size=*/-1, deepmind::code_contests::ContestProblem_Solution::Language::ContestProblem_Solution_Language_PYTHON3);
-
+                                                                      /*max_size=*/-1, deepmind::code_contests::ContestProblem_Solution::Language::ContestProblem_Solution_Language_PYTHON3);
           copy(begin(py2_solutions), end(py2_solutions), back_inserter(solutions));
 
           int num_passed = 0;
           int num_failed = 0;
 
-          // if we want to evaluate only a subset
+          // how many solutions do we want to evaluate at most:
           int max_per_problem = 50;
-          std::vector<int> passorfail;
+          std::vector<bool> passorfail;
           for (const auto &solution : solutions)
           {
             ASSIGN_OR_RETURN(MultiTestResult result3,
@@ -420,16 +422,14 @@ while t:
             }
 
             bool passed = passed3 || passed2;
+            passorfail.push_back(passed);
             if (passed)
             {
               num_passed++;
-              // std::cout << "passed" << std::endl;
             }
             else
             {
-              // ReportResults(result);
               num_failed++;
-              // std::cout << "failed" << std::endl;
             }
             if (num_passed + num_failed >= max_per_problem)
             {
@@ -442,11 +442,11 @@ while t:
           const auto stop = absl::Now();
           std::cout << "Total duration: " << stop - start << std::endl;
 
-          for (const auto &t : passorfail)
-          {
-            std::cout << t << std::endl;
-          }
-          // passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
+          // for (const auto &t : passorfail)
+          //{
+          //   std::cout << t << std::endl;
+          // }
+          passes_and_fails.push_back(std::tuple<int, int>{num_passed, num_failed});
 
           // std::cout << "num passed: " << num_passed << ", num failed: " << num_failed << std::endl;
         }
