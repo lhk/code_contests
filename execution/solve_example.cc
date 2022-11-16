@@ -113,8 +113,8 @@ while t:
       return inputs;
     }
 
-    std::vector<absl::string_view> GetPython3Solutions(const ContestProblem &problem,
-                                                       int max_size)
+    std::vector<absl::string_view> GetLangSolutions(const ContestProblem &problem,
+                                                    int max_size, deepmind::code_contests::ContestProblem_Solution::Language lang)
     {
       std::vector<absl::string_view> solutions;
       // solutions.push_back(kGoodSolution);
@@ -124,7 +124,7 @@ while t:
         {
           continue;
         }
-        if (test.language() == test.PYTHON3)
+        if (test.language() == lang)
         {
           solutions.push_back(test.solution());
         }
@@ -339,7 +339,8 @@ while t:
     {
 
       // set up evaluation environment
-      Py3TesterSandboxer tester(Py3InterpreterPath(), Py3LibraryPaths());
+      Py3TesterSandboxer tester3(Py3InterpreterPath(), Py3LibraryPaths());
+      Py2TesterSandboxer tester2(Py2InterpreterPath(), Py2LibraryPaths());
       TestOptions options;
       options.max_execution_duration = absl::Seconds(5);
       options.num_threads = 12;
@@ -372,7 +373,9 @@ while t:
         std::vector<std::tuple<int, int>> passes_and_fails;
         while (reader.ReadRecord(problem))
         {
-          if (problem.name() != "1091_G. New Year and the Factorisation Collaboration")
+          // const auto name = "1091_G. New Year and the Factorisation Collaboration";
+          const auto name = "1276_E. Four Stones";
+          if (problem.name() != name)
           {
             continue;
           }
@@ -386,9 +389,14 @@ while t:
               GetOutputs(problem,
                          /*max_size=*/-1);
 
-          const std::vector<absl::string_view> solutions =
-              GetPython3Solutions(problem,
-                                  /*max_size=*/-1);
+          const std::vector<absl::string_view> py2_solutions =
+              GetLangSolutions(problem,
+                               /*max_size=*/-1, deepmind::code_contests::ContestProblem_Solution::Language::ContestProblem_Solution_Language_PYTHON);
+
+          std::vector<absl::string_view> solutions = GetLangSolutions(problem,
+                                                                            /*max_size=*/-1, deepmind::code_contests::ContestProblem_Solution::Language::ContestProblem_Solution_Language_PYTHON3);
+
+          copy(begin(py2_solutions), end(py2_solutions), back_inserter(solutions));
 
           int num_passed = 0;
           int num_failed = 0;
@@ -398,12 +406,21 @@ while t:
           std::vector<int> passorfail;
           for (const auto &solution : solutions)
           {
-            ASSIGN_OR_RETURN(MultiTestResult result,
-                             tester.Test(solution, inputs, options, outputs));
-
+            ASSIGN_OR_RETURN(MultiTestResult result3,
+                             tester3.Test(solution, inputs, options, outputs));
             // ReportResults(result);
-            passorfail.push_back(DidItPass(result));
-            if (DidItPass(result))
+            bool passed3 = DidItPass(result3);
+            bool passed2 = false;
+            if (!passed3)
+            {
+              ASSIGN_OR_RETURN(MultiTestResult result2,
+                               tester2.Test(solution, inputs, options, outputs));
+              // ReportResults(result);
+              passed2 = DidItPass(result2);
+            }
+
+            bool passed = passed3 || passed2;
+            if (passed)
             {
               num_passed++;
               // std::cout << "passed" << std::endl;
@@ -519,8 +536,8 @@ int main(int argc, char *argv[])
 
   if (absl::Status status = deepmind::code_contests::SolveReferenceSolution(
           absl::GetFlag(FLAGS_valid_path) //,
-          // absl::GetFlag(FLAGS_input_path),
-          // absl::GetFlag(FLAGS_output_path)
+                                          // absl::GetFlag(FLAGS_input_path),
+                                          // absl::GetFlag(FLAGS_output_path)
       );
       !status.ok())
   {
