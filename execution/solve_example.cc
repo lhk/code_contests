@@ -40,6 +40,7 @@
 #include "riegeli/records/record_reader.h"
 #include "execution/json.hpp"
 
+ABSL_FLAG(std::string, data_path, "", "Path to folder with dataset.");
 ABSL_FLAG(std::string, valid_path, "", "Path to validation dataset.");
 ABSL_FLAG(std::string, input_path, "", "Path to input dataset.");
 ABSL_FLAG(std::string, output_path, "", "Path to output file.");
@@ -336,7 +337,7 @@ while t:
     }
 
     // this method iterates through a dataset and evaluates the reference solutions against the given tests
-    absl::Status SolveReferenceSolution(const std::string valid_path)
+    absl::Status SolveReferenceSolution(const vector<string> filenames)
     {
 
       // set up evaluation environment
@@ -346,23 +347,6 @@ while t:
       options.max_execution_duration = absl::Seconds(5);
       options.num_threads = 2;
       options.stop_on_first_failure = true;
-
-      // if we're evaluating solutions on the training set, we need to adjust the path
-      // the training set is split in 128 riegeli files
-      vector<string> filenames;
-      if (valid_path.find("train") != string::npos)
-      {
-        for (int i = 0; i <= 128; i++)
-        {
-          const auto str = absl::StrFormat("%0*d", 5, i);
-          const auto complete_path = valid_path + "-" + str + "-of-00128";
-          filenames.push_back(complete_path);
-        }
-      }
-      else
-      {
-        filenames.push_back(valid_path);
-      }
 
       // go through all the riegeli files in this dataset
       for (const auto &filename : filenames)
@@ -377,13 +361,20 @@ while t:
         {
           // const auto name = "1091_G. New Year and the Factorisation Collaboration";
           // const auto name = "1575_A. Another Sorting Problem";
-          // if (problem.name() != name)
-          // {
-          //   continue;
-          //}
-          // std::cout << "found the problem" << std::endl;
-          cout<<"-----------------"<<endl;
-          cout<<problem.name()<<endl;
+          const auto name = problem.name();
+          // cout<<name<<endl;
+          if (
+              !((name == "1569_A. Balanced Substring") ||
+                (name == "1551_D2. Domino (hard version)") ||
+                (name == "1552_E. Colors and Intervals") ||
+                (name == "1557_E. Assiut Chess")))
+          {
+            continue;
+          }
+          std::cout << "found the problem" << std::endl;
+          cout << name << endl;
+          cout << "-----------------" << endl;
+          cout << problem.name() << endl;
           const auto start = absl::Now();
           const std::vector<absl::string_view> inputs =
               GetInputs(problem,
@@ -532,10 +523,33 @@ The good solution passes all tests.
 int main(int argc, char *argv[])
 {
   absl::ParseCommandLine(argc, argv);
-  std::cout << "start" << std::endl;
+  const auto data_path = absl::GetFlag(FLAGS_data_path);
+
+  vector<string> filenames;
+  filenames.push_back(data_path + "dm-code_contests/code_contests_test.riegeli");
+  filenames.push_back(data_path + "dm-code_contests/code_contests_valid.riegeli");
+  for (int i = 0; i <= 128; i++)
+  {
+    const auto str = absl::StrFormat("%0*d", 5, i);
+    const auto complete_path = data_path + "dm-code_contests/code_contests_train.riegeli-" + str + "-of-00128";
+    filenames.push_back(complete_path);
+  }
+
+  for (const auto &filename : filenames)
+  {
+
+    riegeli::RecordReader<riegeli::FdReader<>> reader(
+        std::forward_as_tuple(filename));
+    deepmind::code_contests::ContestProblem problem;
+    vector<tuple<int, int>> passes_and_fails;
+    while (reader.ReadRecord(problem))
+    {
+      cout << problem.name() << endl;
+    }
+  }
 
   if (absl::Status status = deepmind::code_contests::SolveReferenceSolution(
-          absl::GetFlag(FLAGS_valid_path) //,
+          filenames //,
                                           // absl::GetFlag(FLAGS_input_path),
                                           // absl::GetFlag(FLAGS_output_path)
       );
