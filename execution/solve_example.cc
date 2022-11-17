@@ -192,6 +192,7 @@ while t:
       if (!(multi_result.compilation_result.program_status ==
             ProgramStatus::kSuccess))
       {
+        cout<<"compilation error"<<endl;
         return false;
       }
       for (const auto &test_result : multi_result.test_results)
@@ -217,32 +218,16 @@ while t:
       int idx;
       string name;
       string generated;
+      string path;
       bool evaluated;
       bool passed;
 
-      CandidateSolution(int idx, string name, string generated, bool evaluated, bool passed) : idx(idx), name(name), generated(generated), evaluated(evaluated), passed(passed) {}
+      CandidateSolution(int idx, string name, string generated, string path, bool evaluated, bool passed) : idx(idx), name(name), generated(generated), path(path), evaluated(evaluated), passed(passed) {}
     };
 
-    absl::Status SolveAll(const absl::string_view valid_path,
+    absl::Status SolveAll(vector<string> filenames,
                           const std::string input_path, const std::string output_path)
     {
-      // parse JSON inputs
-      std::ifstream input_file(input_path);
-      json data = json::parse(input_file);
-      input_file.close();
-      vector<CandidateSolution> generated_solutions;
-
-      vector<json> generations = data["generations"];
-      for (const auto &g : generations)
-      {
-        int idx = g["idx"];
-        string name = g["name"];
-        string solution = g["generated"];
-        CandidateSolution cs(idx, name, solution, false, false);
-        generated_solutions.push_back(cs);
-      }
-      cout << "parsed the input json" << endl;
-
       // set up evaluation environment
       Py3TesterSandboxer tester3(Py3InterpreterPath(), Py3LibraryPaths());
       Py2TesterSandboxer tester2(Py2InterpreterPath(), Py2LibraryPaths());
@@ -251,75 +236,105 @@ while t:
       options.num_threads = 1;
       options.stop_on_first_failure = true;
 
-      // iterate through problems
-      riegeli::RecordReader<riegeli::FdReader<>> reader(
-          std::forward_as_tuple(valid_path));
-      ContestProblem problem;
+      // parse JSON inputs
+      std::ifstream input_file(input_path);
+      json data = json::parse(input_file);
+      input_file.close();
+      vector<CandidateSolution> generated_solutions;
 
-      vector<json> test_results;
-      while (reader.ReadRecord(problem))
+      for (auto entry : data.items())
       {
-        vector<CandidateSolution> generated_for_this_problem;
-        bool found = false;
-        for (const auto &s : generated_solutions)
+        string path = entry.key();
+        cout << path << endl;
+        vector<json> generations = entry.value();
+        for (const auto &g : generations)
         {
-          if (s.name == problem.name())
+          int idx = g["id"];
+          string name = g["name"];
+          for (const auto &solution : g["model_completions"])
           {
-            generated_for_this_problem.push_back(s);
-            found = true;
+            // string solution = g["generated"];
+            CandidateSolution cs(idx, name, solution, path, false, false);
+            generated_solutions.push_back(cs);
           }
         }
-        if (found)
-        {
-          cout << "found a generation" << endl;
-        }
-        else
-        {
-          continue;
-        }
+      }
+      cout << "parsed the input json" << endl;
 
-        const std::vector<absl::string_view> inputs =
-            GetInputs(problem,
-                      /*max_size=*/-1); // -1 for no resizing
-        const std::vector<absl::string_view> outputs =
-            GetOutputs(problem,
-                       /*max_size=*/-1);
+      // we will write the output json to this
+      vector<json> test_results;
 
-        std::vector<int> passorfail;
-        for (const auto &g : generated_for_this_problem)
+      // go through all the riegeli files in this dataset
+      for (const auto &filename : filenames)
+      {
+        // iterate through problems
+        riegeli::RecordReader<riegeli::FdReader<>> reader(
+            std::forward_as_tuple(filename));
+        ContestProblem problem;
+        vector<tuple<int, int>> passes_and_fails;
+        while (reader.ReadRecord(problem))
         {
-          std::string solution = g.generated;
-          cout << solution << endl;
-
-          ASSIGN_OR_RETURN(MultiTestResult result3,
-                           tester3.Test(solution, inputs, options, outputs));
-          // ReportResults(result);
-          bool passed3 = DidItPass(result3);
-          bool passed2 = false;
-          if (!passed3)
+          vector<CandidateSolution> generated_for_this_problem;
+          bool found = false;
+          for (const auto &s : generated_solutions)
           {
-            ASSIGN_OR_RETURN(MultiTestResult result2,
-                             tester2.Test(solution, inputs, options, outputs));
-            // ReportResults(result);
-            passed2 = DidItPass(result2);
+            if (s.name == problem.name())
+            {
+              generated_for_this_problem.push_back(s);
+              found = true;
+            }
           }
-
-          bool passed = passed3 || passed2;
-
-          json res;
-          res["name"] = g.name;
-          res["idx"] = g.idx;
-          res["generated"] = g.generated;
-          res["passed"] = passed;
-          test_results.push_back(res);
-
-          if (passed)
+          if (found)
           {
-            std::cout << "passed" << std::endl;
+            cout << "found a generation" << endl;
           }
           else
           {
-            std::cout << "failed" << std::endl;
+            continue;
+          }
+
+          const std::vector<absl::string_view> inputs =
+              GetInputs(problem,
+                        /*max_size=*/-1); // -1 for no resizing
+          const std::vector<absl::string_view> outputs =
+              GetOutputs(problem,
+                         /*max_size=*/-1);
+
+          std::vector<int> passorfail;
+          for (const auto &g : generated_for_this_problem)
+          {
+            std::string solution = g.generated;
+
+            ASSIGN_OR_RETURN(MultiTestResult result3,
+                             tester3.Test(solution, inputs, options, outputs));
+            // ReportResults(result);
+            bool passed3 = DidItPass(result3);
+            bool passed2 = false;
+            if (!passed3)
+            {
+              ASSIGN_OR_RETURN(MultiTestResult result2,
+                               tester2.Test(solution, inputs, options, outputs));
+              // ReportResults(result);
+              passed2 = DidItPass(result2);
+            }
+
+            bool passed = passed3 || passed2;
+
+            json res;
+            res["name"] = g.name;
+            res["idx"] = g.idx;
+            res["generated"] = g.generated;
+            res["passed"] = passed;
+            test_results.push_back(res);
+
+            if (passed)
+            {
+              std::cout << "passed" << std::endl;
+            }
+            else
+            {
+              std::cout << "failed" << std::endl;
+            }
           }
         }
       }
@@ -348,7 +363,7 @@ while t:
       options.num_threads = 2;
       options.stop_on_first_failure = true;
 
-      // go through all the riegeli files in this dataset
+      // the problem descriptions are split over multiple riegeli files
       for (const auto &filename : filenames)
       {
 
@@ -525,21 +540,20 @@ int main(int argc, char *argv[])
   absl::ParseCommandLine(argc, argv);
   const auto data_path = absl::GetFlag(FLAGS_data_path);
 
-  vector<string> filenames;
-  filenames.push_back(data_path + "dm-code_contests/code_contests_test.riegeli");
-  filenames.push_back(data_path + "dm-code_contests/code_contests_valid.riegeli");
+  vector<string> problem_filenames;
+  problem_filenames.push_back(data_path + "dm-code_contests/code_contests_test.riegeli");
+  problem_filenames.push_back(data_path + "dm-code_contests/code_contests_valid.riegeli");
   for (int i = 0; i <= 128; i++)
   {
     const auto str = absl::StrFormat("%0*d", 5, i);
     const auto complete_path = data_path + "dm-code_contests/code_contests_train.riegeli-" + str + "-of-00128";
-    filenames.push_back(complete_path);
+    problem_filenames.push_back(complete_path);
   }
 
-  if (absl::Status status = deepmind::code_contests::SolveReferenceSolution(
-          filenames //,
-                    // absl::GetFlag(FLAGS_input_path),
-                    // absl::GetFlag(FLAGS_output_path)
-      );
+  if (absl::Status status = deepmind::code_contests::SolveAll(
+          problem_filenames,
+          absl::GetFlag(FLAGS_input_path),
+          absl::GetFlag(FLAGS_output_path));
       !status.ok())
   {
     std::cerr << "Failed: " << status.message() << std::endl;
