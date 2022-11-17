@@ -535,23 +535,10 @@ int main(int argc, char *argv[])
     filenames.push_back(complete_path);
   }
 
-  for (const auto &filename : filenames)
-  {
-
-    riegeli::RecordReader<riegeli::FdReader<>> reader(
-        std::forward_as_tuple(filename));
-    deepmind::code_contests::ContestProblem problem;
-    vector<tuple<int, int>> passes_and_fails;
-    while (reader.ReadRecord(problem))
-    {
-      cout << problem.name() << endl;
-    }
-  }
-
   if (absl::Status status = deepmind::code_contests::SolveReferenceSolution(
           filenames //,
-                                          // absl::GetFlag(FLAGS_input_path),
-                                          // absl::GetFlag(FLAGS_output_path)
+                    // absl::GetFlag(FLAGS_input_path),
+                    // absl::GetFlag(FLAGS_output_path)
       );
       !status.ok())
   {
