@@ -215,14 +215,13 @@ while t:
 
     struct CandidateSolution
     {
-      int idx;
-      string name;
+      string id;
       string generated;
       string path;
       bool evaluated;
       bool passed;
 
-      CandidateSolution(int idx, string name, string generated, string path, bool evaluated, bool passed) : idx(idx), name(name), generated(generated), path(path), evaluated(evaluated), passed(passed) {}
+      CandidateSolution(string id, string generated, string path, bool evaluated, bool passed) : id(id), generated(generated), path(path), evaluated(evaluated), passed(passed) {}
     };
 
     absl::Status SolveAll(vector<string> filenames,
@@ -249,12 +248,11 @@ while t:
         vector<json> generations = entry.value();
         for (const auto &g : generations)
         {
-          int idx = g["id"];
-          string name = g["name"];
+          string id = g["id"];
           for (const auto &solution : g["model_completions"])
           {
             // string solution = g["generated"];
-            CandidateSolution cs(idx, name, solution, path, false, false);
+            CandidateSolution cs(id, solution, path, false, false);
             generated_solutions.push_back(cs);
           }
         }
@@ -278,7 +276,7 @@ while t:
           bool found = false;
           for (const auto &s : generated_solutions)
           {
-            if (s.name == problem.name())
+            if (s.id == problem.name())
             {
               generated_for_this_problem.push_back(s);
               found = true;
@@ -321,8 +319,7 @@ while t:
             bool passed = passed3 || passed2;
 
             json res;
-            res["name"] = g.name;
-            res["idx"] = g.idx;
+            res["id"] = g.id;
             res["generated"] = g.generated;
             res["passed"] = passed;
             test_results.push_back(res);
