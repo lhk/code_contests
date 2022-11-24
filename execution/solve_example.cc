@@ -232,7 +232,7 @@ while t:
       Py2TesterSandboxer tester2(Py2InterpreterPath(), Py2LibraryPaths());
       TestOptions options;
       options.max_execution_duration = absl::Seconds(5);
-      options.num_threads = 1;
+      options.num_threads = 12;
       options.stop_on_first_failure = true;
 
       // parse JSON inputs
